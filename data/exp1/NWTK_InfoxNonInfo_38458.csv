@@ -1,0 +1,6 @@
+"view_history","rt","trial_type","trial_index","time_elapsed","internal_node_id","condition","PID","stimulus","button_pressed","key_press","responses"
+"[{""page_index"":0,""viewing_time"":36189}]","36192","instructions","0","36202","0.0-0.0","0","38458","","","",""
+"","22008","html-button-response","1","58218","0.0-1.0","0","38458","<p>This experiment is now online instead of in-person in a controlled computer lab due to the current COVID-19 pandemic.</br> Please focus on the experiment and refrain from activities such as:</p>- <b>switching to other tabs on your browser (this will be monitored via the experiment)</br> - going on your mobile phone/cell phone</br> - communicating with others</br></br></b><p>This way you are helping to provide data that is useful for psychological research.</p>","0","",""
+"","2369","html-keyboard-response","2","60593","0.0-2.0","0","38458","<p>Welcome to the experiment.</p><p>Press the SPACE bar to continue</p>","","32",""
+"","3790.049999995972","survey-text","3","64394","0.0-3.0","0","38458","","","","{""undefined"":""34""}"
+"","1942","survey-multi-choice","4","66347","0.0-4.0","0","38458","","","","{""Q0"":""Male""}"
