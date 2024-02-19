@@ -386,7 +386,7 @@ var banditParameters_FonSub =  {
       outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
       feedbackDuration: 1000,
       preTrialInterval: 0,
-      cueDuration: 1000,//20000,
+      cueDuration: 20000,
   };
 
   var banditParameters_FonEq =  {
@@ -404,7 +404,7 @@ var banditParameters_FonSub =  {
     outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
     feedbackDuration: 1000,
     preTrialInterval: 0,
-    cueDuration: 1000,//20000,
+    cueDuration: 20000,
   };
 
 // parameters for when FON is the better option -- 120 to 80
@@ -423,7 +423,7 @@ var banditParameters_FonOpt =  {
       outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
       feedbackDuration: 1000,
       preTrialInterval: 0,
-      cueDuration: 1000,//20000,
+      cueDuration: 20000,
   };    
 
 // VARIABLES FOR THE NON-INFORMATIVE CONDITION
@@ -476,7 +476,7 @@ var banditParameters_NISub =  {
   outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
   feedbackDuration: 1000,
   preTrialInterval: 0,
-  cueDuration: 1000,//20000,
+  cueDuration: 20000,
 };
 
 var banditParameters_NIEq =  {
@@ -494,7 +494,7 @@ var banditParameters_NIEq =  {
   outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
   feedbackDuration: 1000,
   preTrialInterval: 0,
-  cueDuration: 1000,//20000,
+  cueDuration: 20000,
   };
 
   var banditParameters_NIOpt =  {
@@ -512,7 +512,7 @@ var banditParameters_NIEq =  {
   outcomeProbs2: [[0.5, 0.5], [0.5, 0.5]], // Array with probabilities associated with outcomes2. Must be the same length
   feedbackDuration: 1000,
   preTrialInterval: 0,
-  cueDuration: 1000,//20000,
+  cueDuration: 20000,
   };    
 
  /* instructions for actual experiment */
@@ -547,7 +547,7 @@ var optInfoTrial = {
       timeline_variables: [
         {instructionText: "<b>20 Second Delay</b>"},
       ],
-      repetitions: 2,
+      repetitions: 15,
       on_finish: function(data){
         data.leftOption = stimuli.leftOption
         data.rightOption = stimuli.rightOption
@@ -570,7 +570,7 @@ var optNoninfoTrial = {
   timeline_variables: [
     {instructionText: "<b>20 Second Delay</b>"},
   ],
-  repetitions: 2,
+  repetitions: 15,
   on_finish: function(data){
     console.log("trialNumber = " + trialNumber)
     data.leftOption = stimuli.leftOption
@@ -594,7 +594,7 @@ var subInfoTrial = {
     timeline_variables: [
       {instructionText: "<b>20 Second Delay</b>"},
       ],
-      repetitions: 2,
+      repetitions: 15,
       on_finish: function(data){
         console.log("trialNumber = " + trialNumber)
         data.leftOption = stimuli.leftOption
@@ -619,7 +619,7 @@ var subNoninfoTrial = {
     timeline_variables: [
       {instructionText: "<b>20 Second Delay</b>"},
       ],
-      repetitions: 2,
+      repetitions: 15,
       on_finish: function(data){
         console.log("trialNumber = " + trialNumber)
         data.leftOption = stimuli.leftOption
@@ -644,7 +644,7 @@ var subNoninfoTrial = {
     timeline_variables: [
         {instructionText: "<b>20 Second Delay</b>"},
     ],
-    repetitions: 2,
+    repetitions: 15,
     on_finish: function(data){
         data.leftOption = stimuli.leftOption
         data.rightOption = stimuli.rightOption
@@ -667,7 +667,7 @@ var eqNoninfoTrial = {
     timeline_variables: [
         {instructionText: "<b>20 Second Delay</b>"},
     ],
-    repetitions: 2,
+    repetitions: 15,
     on_finish: function(data){
         data.leftOption = stimuli.leftOption
         data.rightOption = stimuli.rightOption

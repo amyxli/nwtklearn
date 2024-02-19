@@ -1,12 +1,13 @@
 # learning NWTK Exp 2
 # created axl 7/9/22
-# last updated 30/8/23
+# last updated 12/12/23
 
 # load the libraries
 library(tidyverse)
 library(here)
 library(data.table)
 library(ggthemes)
+library(lmtest)
 
 # load the data
 data <- read.csv(here("data_tidy", "s2_data_cleaned.csv"))
@@ -89,64 +90,111 @@ library(lme4)
 library(emmeans)
 
 ## subset based on optimCond, then compare between infoCond within each optimCond
-
+trialdat$PID <- as.factor(trialdat$PID)
 trialdatEq <- subset(trialdat, optimCond == "eq")
 trialdatOptim <- subset(trialdat, optimCond == "optim")
 trialdatSub <- subset(trialdat, optimCond == "sub")
 
 
-# examine between infocond differences for equal optimcond
+### examine between infocond differences for equal optimcond ####
 
 ## relevel for analysis
 
 trialdatEq$infoCond <- as.factor(trialdatEq$infoCond)
 trialdatEq$infoCond <-relevel(trialdatEq$infoCond, ref = "info")
 
-mod_eq <- glmer(choice ~ infoCond + banditTrial + (1|PID),
+# model with both main effects
+mod_eq_1 <- glmer(choice ~ infoCond + banditTrial + (1|PID),
                 data = trialdatEq,
                 family = binomial(link = "logit"),
-                nAGQ = 0) # nAGQ = 0: Try fitting the model with the adaptive Gaussian quadrature 
-# instead the Laplace approximation due to warning message
+                nAGQ = 0) 
 
-summary(mod_eq) ## infoCond sig (p=.049), banditTrial sig
+# model with an interaction
+mod_eq_2 <- glmer(choice ~ infoCond*banditTrial + (1|PID),
+                    data = trialdatEq,
+                    family = binomial(link = "logit"),
+                    nAGQ = 0)
 
-confint(pairs(emmeans(mod_eq, ~ infoCond,type="response")))
+lrtest(mod_eq_1, mod_eq_2)
+# Likelihood ratio test
+# 
+# Model 1: choice ~ infoCond + banditTrial + (1 | PID)
+# Model 2: choice ~ infoCond * banditTrial + (1 | PID)
+# #Df  LogLik Df  Chisq Pr(>Chisq)
+# 1   4 -4047.8                     
+# 2   5 -4046.8  1 2.1566      0.142
 
+# fetch wald stats from mod_eq_1 model
+summary(mod_eq_1) ## infoCond sig (p=.049), banditTrial sig
 # Fixed effects:
 #   Estimate Std. Error z value Pr(>|z|)   
 # (Intercept)      0.311677   0.112291   2.776  0.00551 **
 #   infoCondnoninfo -0.277170   0.140880  -1.967  0.04913 * 
 #   banditTrial      0.003188   0.001540   2.070  0.03847 * 
 
-# now for the optim cond
+confint(pairs(emmeans(mod_eq_1, ~ infoCond,type="response")))
+# contrast       odds.ratio    SE  df asymp.LCL asymp.UCL
+# info / noninfo       1.32 0.186 Inf         1      1.74
+
+### now for the optim cond ####
 ## relevel for analysis
 
 trialdatOptim$infoCond <- as.factor(trialdatOptim$infoCond)
 trialdatOptim$infoCond <-relevel(trialdatOptim$infoCond, ref = "noninfo") # set as noninfo for glm, info for emmeans
 
-mod_optim <- glmer(choice ~ infoCond + banditTrial + (1|PID),
+mod_optim_1 <- glmer(choice ~ infoCond + banditTrial + (1|PID),
                    data = trialdatOptim,
                    family = binomial(link = "logit"),
                    nAGQ = 0)
 
-summary(mod_optim) ## infoCond ns (p=0.957), banditTrial sig
+mod_optim_2 <- glmer(choice ~ infoCond*banditTrial + (1|PID),
+                       data = trialdatOptim,
+                       family = binomial(link = "logit"),
+                       nAGQ = 0)
 
-confint(pairs(emmeans(mod_optim, ~ infoCond,type="response")))
 
-# now for the sub cond
+lrtest(mod_optim_1, mod_optim_2)
+
+# Likelihood ratio test
+# 
+# Model 1: choice ~ infoCond + banditTrial + (1 | PID)
+# Model 2: choice ~ infoCond * banditTrial + (1 | PID)
+# #Df  LogLik Df Chisq Pr(>Chisq)
+# 1   4 -3857.1                    
+# 2   5 -3856.0  1 2.292       0.13
+
+summary(mod_optim_1)
+
+confint(pairs(emmeans(mod_optim_1, ~ infoCond,type="response")))
+# contrast       odds.ratio    SE  df asymp.LCL asymp.UCL
+# noninfo / info       1.01 0.159 Inf     0.741      1.37
+
+### now for the sub cond ####
 
 trialdatSub$infoCond <- as.factor(trialdatSub$infoCond)
 trialdatSub$infoCond <-relevel(trialdatSub$infoCond, ref = "info") # set as noninfo for glm, info for emmeans
 
-mod_sub <- glmer(choice ~ infoCond + banditTrial + (1|PID),
+
+mod_sub_1 <- glmer(choice ~ infoCond + banditTrial + (1|PID),
                  data = trialdatSub,
                  family = binomial(link = "logit"),
                  nAGQ = 0)
 
-summary(mod_sub) ## infoCond significant (p=0.00506), banditTrial sig
+mod_sub_2 <- glmer(choice ~ infoCond*banditTrial + (1|PID),
+                   data = trialdatSub,
+                   family = binomial(link = "logit"),
+                   nAGQ = 0)
 
-confint(pairs(emmeans(mod_sub, ~ infoCond,type="response")))
+lrtest(mod_sub_1, mod_sub_2)
+# Likelihood ratio test
+# 
+# Model 1: choice ~ infoCond + banditTrial + (1 | PID)
+# Model 2: choice ~ infoCond * banditTrial + (1 | PID)
+# #Df  LogLik Df Chisq Pr(>Chisq)
+# 1   4 -3963.1                    
+# 2   5 -3962.9  1 0.387     0.5339
 
+summary(mod_sub_1)
 
 # Value estimates from block 4 ####
 
@@ -254,7 +302,7 @@ block4Ests_postExcl <- block4Ests_postExcl %>% filter(value > 0) # for estimates
 ## Analyse block 4 estimates ####
 
 #block4Ests_postExcl <- read.csv(here("data_tidy", "s2_block4Ests_postExcl.csv")) # uncomment if running analyses with regular exclusions
-#block4Ests_postExcl <- read.csv(here("data_tidy", "s2_block4Ests_postExcl_strict.csv")) # uncomment if running analyses with strict exclusions
+# block4Ests_postExcl <- read.csv(here("data_tidy", "s2_block4Ests_postExcl_strict.csv")) # uncomment if running analyses with strict exclusions
 #block4Ests_postExcl <- block4Ests # uncomment if running analyses with no exclusions; just using the original block4Ests dataframe
 
 ## analyse using lmer ####
@@ -268,62 +316,53 @@ block4Ests_postExcl$infoCond <-relevel(block4Ests_postExcl$infoCond, ref = "noni
 ### for eq optimCond ####
 
 block4mod_eq <- lmer(value ~ infoCond*optionType + (1|PID),
-                     data = subset(block4Ests_postExcl, optimCond == "eq"),
-                     REML = FALSE)
+                       data = subset(block4Ests_postExcl, optimCond == "eq"),
+                       REML = FALSE)
 
 summary(block4mod_eq)
-
-# (Intercept)                    100.4456     5.2053  120.1312  19.297   <2e-16 ***
-#   infoCondinfo                  -5.4322     7.1771  119.5536  -0.757    0.451       
-# optionTypetarget                -0.4784     2.6717 2512.3200  -0.179    0.858  
-# infoCondinfo:optionTypetarget    1.1773     3.8732 2511.4278   0.304    0.761       
+# 
+# Fixed effects:
+#   Estimate Std. Error        df t value Pr(>|t|)    
+# (Intercept)                     95.0134     4.9412  118.9174  19.229   <2e-16 ***
+#   infoCondinfo                     5.4322     7.1771  119.5536   0.757    0.451    
+# optionTypetarget                -0.4784     2.6717 2512.3200  -0.179    0.858    
+# infoCondinfo:optionTypetarget    1.1773     3.8732 2511.4278   0.304    0.761   
 
 ### for noneq optimCond ####
 
 #### for opt optimCond ####
+
 block4mod_opt <- lmer(value ~ infoCond*optionType + (1|PID),
-     data = subset(block4Ests_postExcl, optimCond == "optim"),
-     REML = FALSE)
+                       data = subset(block4Ests_postExcl, optimCond == "optim"),
+                       REML = FALSE)
 
 summary(block4mod_opt)
 
 # Fixed effects:
+#   Estimate Std. Error       df t value Pr(>|t|)    
 # (Intercept)                     89.902      6.773   57.580  13.273  < 2e-16 ***
 #   infoCondinfo                     7.848      9.548   56.664   0.822  0.41454    
 # optionTypetarget                25.221      3.297 2280.417   7.648 2.98e-14 ***
 #   infoCondinfo:optionTypetarget  -12.964      4.544 2270.207  -2.853  0.00437 ** 
-  
+
 #### for sub optimCond ####
-
+  
 block4mod_sub <- lmer(value ~ infoCond*optionType + (1|PID),
-                      data = subset(block4Ests_postExcl, optimCond == "sub"),
-                      REML = FALSE)
-
+                        data = subset(block4Ests_postExcl, optimCond == "sub"),
+                        REML = FALSE)
 summary(block4mod_sub)
 
 # Fixed effects:
 #   Estimate Std. Error       df t value Pr(>|t|)    
-# (Intercept)                   109.9467     1.8878  29.4332  58.241   <2e-16 ***
-#   infoCondinfo                   -0.4856     2.5561  29.4332  -0.190    0.851    
-# optionTypetarget              -25.0800     1.3914 638.0000 -18.025   <2e-16 ***
-#   infoCondinfo:optionTypetarget  -1.3811     1.8840 638.0000  -0.733    0.464   
-
-## AFTER
-# (Intercept)                      114.958      4.453  146.774  25.817  < 2e-16 ***
+# (Intercept)                    114.958      4.453  146.774  25.817  < 2e-16 ***
 #   infoCondinfo                    -9.235      6.307  147.823  -1.464   0.1452    
-# optionTypetarget                 -25.082      3.776 2336.106  -6.643 3.81e-11 ***
-#   infoCondinfo:optionTypetarget   11.388      5.287 2331.637   2.154   0.0314 *  
-
+# optionTypetarget               -25.082      3.776 2336.106  -6.643 3.81e-11 ***
+#   infoCondinfo:optionTypetarget   11.388      5.287 2331.637   2.154   0.0314 * 
+  
 ##### get means
 
 tmp<-subset(block4Ests_postExcl, optimCond == "sub" & optOptimality == "sub")
 tmp %>% group_by(infoCond) %>% summarise(mean(value))
-
-# infoCond `mean(value)`
-# <fct>            <dbl>
-#   1 noninfo           85.1
-# 2 info              86.8
-
 
 ## now process data to be visualised ####
 block4Ests_postExcl_backup <- block4Ests_postExcl
@@ -479,7 +518,8 @@ repeatEsts_postExcl_ids <- repeatEsts_postExcl$PID %>% unique() # length 303; 16
 # Uncomment the below if running analyses with strict exclusion  
 ### Scenario 2: Strict exclusion ####
 ### SI Scenario 2 (strict exclusion) ####
-# 
+# write.csv(block4Ests_postExcl_strict, here("data_tidy", "s2_block4Ests_postExcl_strict.csv"), row.names = FALSE)
+
 # # Exclude participants who gave a response they could not have observed (this differs by condition)
 # 
 # ## Exclude participants in target & non-target not equal who gave estimates less than 70
@@ -497,11 +537,26 @@ repeatEsts_postExcl_ids <- repeatEsts_postExcl$PID %>% unique() # length 303; 16
 # # Exclude participants did NOT give 0 responses
 # # run section on repeatExcl2_ids
 # 
+# repeatEsts$PID <- as.factor(repeatEsts$PID) # change data type for grouping
+# 
+# repeatEsts_nZero <- repeatEsts %>% 
+#   group_by(PID,postQ, .drop=FALSE) %>%
+#   count(responses == 0) %>%  # count number of 0 responses out of 10 estimates for each postQ (option); and do same for non-0s
+#   arrange(PID, postQ, `responses == 0`) %>%
+#   summarise(count = n()) # each participant should have count "2" for each postQ, if correctly following instructions to report 0s and non-0s
+# repeatExcl2 <- subset(repeatEsts_nZero, count < 2)$PID
+# repeatExcl2_ids <- repeatExcl2 %>% unique()
+# 
+# # now pick out only the unique ones
+# 
+# repeatExcl2_ids <- as.numeric(as.character(repeatExcl2_ids)) # convert variable type for subsetting later
+# 
+# 
 # # remove people
 # 
-# repeatEsts <- repeatEsts %>% filter(!(PID %in% repeatEsts_strictExcl1) & !(PID %in% repeatExcl2_ids)) # for estimates over 1000, remove the whole subject
+# repeatEsts_postExcl <- repeatEsts %>% filter(!(PID %in% repeatEsts_strictExcl1) & !(PID %in% repeatExcl2_ids)) # for estimates over 1000, remove the whole subject
 # 
-# repeatEsts$PID %>% unique()
+# repeatEsts_postExcl$PID %>% unique()
 
 ## Compute relative optimality of the given option ####
 
@@ -607,31 +662,17 @@ ggplot(repeatEsts_summary_eq, aes(x=infoCond, y=mean, col = infoCond)) +
 repeatEsts_inds_eq <- repeatEsts_postExcl %>% 
   filter(optimCond == "eq") 
 
-repeatedEsts_eq_mod <- lmer(responses ~ infoCond*optionType + (1|PID), data = repeatEsts_inds_eq, REML = FALSE)
+repeatedEsts_eq <- lmer(responses ~ optionType*infoCond + (1|PID), data = repeatEsts_inds_eq, REML = FALSE)
 
-summary(repeatedEsts_eq_mod)
-
-# Fixed effects:
-#   Estimate Std. Error        df t value Pr(>|t|)
-# (Intercept)                        53.6339     3.3960  196.5940  15.793   <2e-16
-# infoCondnoninfo                    -3.8251     4.6923  196.1339  -0.815    0.416
-# optionTypetarget                   -0.2791     4.4631 1234.1960  -0.063    0.950
-# infoCondnoninfo:optionTypetarget    1.6232     6.1686 1234.1242   0.263    0.792
+summary(repeatedEsts_eq)
 
 ### for optim optimCond ####
 repeatEsts_inds_optim <- repeatEsts_postExcl %>% 
   filter(optimCond == "optim") 
 
-repeatEsts_optim_mod <- lmer(responses ~ infoCond*optionType + (1|PID), data = repeatEsts_inds_optim, REML=FALSE)
+repeatedEsts_optim <- lmer(responses ~ optionType*infoCond + (1|PID), data = repeatEsts_inds_optim, REML = FALSE)
 
-summary(repeatEsts_optim_mod)
-
-# Fixed effects:
-#                                       Estimate Std. Error   df t value Pr(>|t|)    
-# (Intercept)                          45.716      3.619  143.922  12.632  < 2e-16 ***
-#   infoCondnoninfo                    -5.809      5.160  143.922  -1.126  0.26214    
-#   optionTypetarget                   12.942      4.307 1159.000   3.005  0.00271 ** 
-#   infoCondnoninfo:optionTypetarget    1.828      6.141 1159.000   0.298  0.76601    
+summary(repeatedEsts_optim)
 
 #### means ####
 
@@ -639,22 +680,9 @@ summary(repeatEsts_optim_mod)
 repeatEsts_inds_sub <- repeatEsts_postExcl %>% 
   filter(optimCond == "sub") 
 
-repeatEsts_sub_mod <- lmer(responses ~ infoCond*optionType + (1|PID), data = repeatEsts_inds_sub, REML = FALSE)
+repeatedEsts_sub <- lmer(responses ~ optionType*infoCond + (1|PID), data = repeatEsts_inds_sub, REML = FALSE)
 
-summary(repeatEsts_sub_mod)
-
-repeatEsts_sub_mod <- lm(responses ~ infoCond*optionType, data = repeatEsts_inds_sub)
-
-summary(repeatEsts_sub_mod)
-
-repeatEsts_inds_sub %>% group_by(infoCond, optionType) %>% get_summary_stats()
-
-# Fixed effects:
-#                                   Estimate Std. Error        df t value Pr(>|t|)    
-# (Intercept)                        53.7194     3.1831  190.5025  16.876   <2e-16 ***
-#   infoCondnoninfo                     0.9572     4.7213  190.5025   0.203   0.8396    
-# optionTypetarget                   -2.7944     4.1224 1254.0000  -0.678   0.4980    
-# infoCondnoninfo:optionTypetarget  -11.9756     6.1145 1254.0000  -1.959   0.0504 .  
+summary(repeatedEsts_sub)
 
 # Assessing relationship between people's estimates and their choices in the task ####
 
@@ -701,11 +729,14 @@ block4ets_choice_plot
 block4ests_choiceFON$condition <- as.factor(block4ests_choiceFON$condition)
 block4ests_choiceFON$condition<-relevel(block4ests_choiceFON$condition, ref = 'noninfo, eq') # make non-info eq the reference
 
-#tmp_lm_block4 <- lm(P_FON ~ difference + 1 + condition,block4ests_choiceFON)
-tmp_lm_block4 <- lm(P_FON ~ different + 1, block4ests_choiceFON)
+tmp_lm_block4 <- lm(P_FON ~ difference + 1, block4ests_choiceFON)
 summary(tmp_lm_block4)
 
-block4ests_choiceFON$PID
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept) 53.51233    1.01642  52.648  < 2e-16 ***
+#   difference   0.14641    0.03224   4.542 8.69e-06 ***
+  
 
 ## Relationship between repeated post-test estimates and target choices ####
 
@@ -747,11 +778,15 @@ repeatEsts_choice_plot
 
 ##lm
 
-repeatEsts_lm <- lm(P_FON ~ difference + 1 + condition, data= repeatEsts_choice)
+repeatEsts_lm <- lm(P_FON ~ difference + 1, data= repeatEsts_choice)
 repeatEsts_choice$PID 
 
 summary(repeatEsts_lm)
 
+# Coefficients:
+#   Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)  51.9749     1.3092   39.70  < 2e-16 ***
+#   difference    0.2191     0.0524    4.18 4.78e-05 ***
 
 # Supps: Value estimates from final estimates ####
 
@@ -858,3 +893,230 @@ singleEst_sub <- singleEst %>% filter(optimCond == "sub")
 
 t.test(responses ~ infoCond, var.equal = TRUE, data = subset(singleEst_sub, optOptimality == "sub")) # for the worse option
 t.test(responses ~ infoCond, var.equal = TRUE, data = subset(singleEst_sub, optOptimality == "optim")) # for the better option
+
+#################################
+## Win-Stay Lose-Shift Behav ####
+#################################
+library(lme4)
+
+exp2_trialdat_wsls <- trialdat %>%
+  mutate(switch = ifelse(banditTrial == 1, "NA",
+                         ifelse(choice == lag(choice), 0, 1))) %>%
+  mutate(prevFeedback = ifelse(banditTrial == 1, "NA", lag(feedback)))
+
+
+exp2_trialdat_wsls2 <- exp2_trialdat_wsls %>%
+  filter(switch != "NA") %>%
+  select(PID, condition, infoCond, optimCond, banditTrial, choice, feedback, switch, prevFeedback)
+
+
+exp2_trialdat_wsls2$switch <- as.numeric(exp2_trialdat_wsls2$switch)
+exp2_trialdat_wsls2$prevFeedback <- as.numeric(exp2_trialdat_wsls2$prevFeedback)
+exp2_trialdat_wsls2$PID <- as.numeric(exp2_trialdat_wsls2$PID)
+
+## datatset which does contain duplicates
+
+exp2_trialdat_wsls2_dupes <- exp2_trialdat_wsls2
+
+## removing the duplicates
+exp2_trialdat_wsls2 <- exp2_trialdat_wsls2 %>%
+  filter(PID < 191293823)
+
+length(unique(exp2_trialdat_wsls2$PID))
+
+exp2_trialdat_wsls2$PID <- as.factor(exp2_trialdat_wsls2$PID)
+
+
+#### collapsing across optimality ####
+
+exp2_wsls_feedback_all <- glmer(switch ~ 1 + prevFeedback*infoCond + (1|PID),
+                                family = binomial(link = "logit"),
+                                data = exp2_trialdat_wsls2)
+
+summary(exp2_wsls_feedback_all)
+
+# Fixed effects:
+# Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                  -0.1939393  0.0558925  -3.470 0.000521 ***
+# prevFeedback                 -0.0016621  0.0004292  -3.873 0.000108 ***
+# infoCondnoninfo               0.0040538  0.0786047   0.052 0.958870    
+# prevFeedback:infoCondnoninfo -0.0004800  0.0006028  -0.796 0.425905    
+
+#### old school WSLS model #####
+
+##### finding out the parms and putting them in a dataframe for each individual
+
+## turning data into an array
+exp2_trialdat_wsls2$PID <- as.factor(exp2_trialdat_wsls2$PID)
+levels(exp2_trialdat_wsls2$PID) <- 1:length(unique(exp2_trialdat_wsls2$PID))
+exp2_trialdat_wsls2$PID <- as.numeric(exp2_trialdat_wsls2$PID)
+
+exp2_trialdat_wsls_array <- array(0, dim = c(59, ncol(exp2_trialdat_wsls2), length(unique(exp2_trialdat_wsls2$PID))))
+
+for(i in 1:length(unique(exp2_trialdat_wsls2$PID))){
+  for(j in 1:59){
+    for(k in 1:ncol(exp2_trialdat_wsls2)){
+      exp2_trialdat_wsls_array[j,k,i] <- exp2_trialdat_wsls2[exp2_trialdat_wsls2$PID == i & exp2_trialdat_wsls2$banditTrial == j +1, k]
+    }
+  }
+}
+
+tmp <- colnames(exp2_trialdat_wsls2)
+
+colnames(exp2_trialdat_wsls_array) <- tmp
+
+#######
+
+exp2_parmDeterminer <- data.frame(PID = 1:length(unique(exp2_trialdat_wsls2$PID)),
+                                  p_winstay = 0,
+                                  p_loseshift = 0)
+
+
+## col 8 switch (where switch == 1)
+## col 9 is prevfeedback
+
+for(j in 1:length(unique(exp2_trialdat_wsls2$PID))){
+  switchCount_lose <- 0
+  stayCount_win <- 0
+  loseTotalCounter <- 0
+  winTotalCounter <- 0
+  for(i in 1:59) {
+    if(exp2_trialdat_wsls_array[i, "prevFeedback", j] == 0){
+      loseTotalCounter <- loseTotalCounter + 1
+      if(exp2_trialdat_wsls_array[i, "switch", j] == 1) {
+        switchCount_lose <- switchCount_lose + 1
+      }
+    } else if(exp2_trialdat_wsls_array[i, "prevFeedback", j] > 0) {
+      winTotalCounter <- winTotalCounter + 1
+      if(exp2_trialdat_wsls_array[i, "switch", j] == 0) {
+        stayCount_win <- stayCount_win + 1
+      }
+    }
+  }
+  exp2_parmDeterminer[j,3] <-  switchCount_lose/loseTotalCounter
+  exp2_parmDeterminer[j,2] <-  stayCount_win/winTotalCounter
+}
+
+
+mean(exp2_parmDeterminer[,2])
+mean(exp2_parmDeterminer[,3])
+
+
+### tells which condition they were in
+PID_infoCond <- exp2_trialdat_wsls2 %>%
+  filter(banditTrial == 2 & infoCond == "info") %>%
+  select(PID) %>%
+  ungroup() %>% unlist() %>% unname()
+
+
+## adding a col to parmDeterminer
+
+exp2_parmDeterminer <- as.data.frame(exp2_parmDeterminer)
+
+exp2_parmDeterminer2 <- exp2_parmDeterminer %>%
+  mutate(condition = ifelse(PID %in% PID_infoCond, "Info", "NonInfo"))
+
+parmSummary2 <- exp2_parmDeterminer2 %>%
+  group_by(condition) %>%
+  summarise(mean_winstay = mean(p_winstay), sd_winstay = sd(p_winstay),
+            mean_loseshift = mean(p_loseshift), sd_loseshift = sd(p_loseshift))
+
+
+
+#########################################
+### Reanalysing the equal condition #####
+###          R1 suggestion.         #####
+#########################################
+
+exp2_eq_rerandomise <- trialdat %>%
+  filter(optimCond == "eq" & infoCond == "noninfo")
+
+exp2_eq_rerandomise_infoCond <- trialdat %>%
+  filter(optimCond == "eq" & infoCond == "info")
+
+PID_list <- as.data.frame(unique(exp2_eq_rerandomise$PID))
+
+PID_list$target <- NA
+
+colnames(PID_list) <- c("PID", "target")
+
+for(i in 1:nrow(PID_list)){
+  PID_list[i,2] <-   sample(c("triangle", "square"), 1)
+}
+
+exp2_eq_rerandomise_done <- merge(exp2_eq_rerandomise,PID_list)
+exp2_eq_rerandomise_done$target <- as.character(exp2_eq_rerandomise_done$target)
+exp2_eq_rerandomise_done$choiceName <- as.character(exp2_eq_rerandomise_done$choiceName)
+
+exp2_eq_rerandomise_done <- exp2_eq_rerandomise_done %>%
+  mutate(choice = ifelse(str_detect(choiceName, target), 1, 0))
+
+exp2_eq_rerandomise_done_dropTarget <- exp2_eq_rerandomise_done %>%
+  select(-target)
+
+exp2_eq_rerandomise_all <- rbind(exp2_eq_rerandomise_infoCond, exp2_eq_rerandomise_done_dropTarget)
+
+#### the below is the same as the analyses conducted above
+## Analyse ####
+
+## relevel for analysis
+
+exp2_eq_rerandomise_all$infoCond <- as.factor(exp2_eq_rerandomise_all$infoCond)
+
+redo_mod_eq <- glmer(choice ~ infoCond+banditTrial + (1|PID),
+                     data = exp2_eq_rerandomise_all,
+                     family = binomial(link = "logit"),
+                     nAGQ = 0) 
+
+redo_mod_eq_full <- glmer(choice ~ infoCond*banditTrial + (1|PID),
+                          data = exp2_eq_rerandomise_all,
+                          family = binomial(link = "logit"),
+                          nAGQ = 0) 
+
+summary(redo_mod_eq) 
+
+anova(redo_mod_eq, redo_mod_eq_full)
+
+confint(pairs(emmeans(redo_mod_eq, ~ infoCond,type="response")))
+
+###############
+## Checking only those who showed a preference for the optimal option -- as suggested by R2
+
+optimPrefOnly_PIDs <- trialdatOptim %>%
+  group_by(PID) %>%
+  summarise(meanPref = mean(as.numeric(choice)) - 1) %>%
+  filter(meanPref > .6) %>%
+  select(PID) %>% ungroup() %>% unlist() %>% unname()
+
+optimPrefOnly_trialdatOptim <- trialdatOptim %>%
+  filter(PID %in% optimPrefOnly_PIDs)
+
+## summary for plotting
+optimPrefOnly_trialdatOptim$choice <- as.numeric(optimPrefOnly_trialdatOptim$choice) - 1
+
+tmp_summary <- optimPrefOnly_trialdatOptim %>%
+  group_by(infoCond, block) %>%
+  summarise(meanPref = mean(as.numeric(choice)), se = sd(choice)/sqrt(length(choice) - 1))
+
+
+
+ggplot(tmp_summary, aes(x = block, y = meanPref, col = infoCond, group = infoCond))+
+  geom_point()+
+  geom_line()+
+  geom_errorbar(aes(ymin = meanPref - se, ymax = meanPref + se))+
+  theme_bw()
+
+
+length(unique(optimPrefOnly_trialdatOptim$PID))
+
+## analysis
+optimPrefOnly_trialdatOptim$choice <- as.factor(optimPrefOnly_trialdatOptim$choice)
+optimPrefOnly_trialdatOptim$PID <- as.factor(optimPrefOnly_trialdatOptim$PID)
+
+
+tmp <- glmer(choice ~ infoCond + (1|PID), 
+             family = binomial(link = "logit"),
+             nAGQ = 0,
+             data = optimPrefOnly_trialdatOptim)
+
+summary(tmp)

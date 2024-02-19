@@ -1,6 +1,6 @@
 # learning NWTK Exp 1
 # created axl 7/9/22
-# last updated axl 23/8/23
+# last updated axl 12/12/23
 
 # load the libraries
 library(tidyverse)
@@ -8,6 +8,7 @@ library(here)
 library(data.table)
 library(ggthemes)
 library(emmeans)
+library(lmtest)
 
 # load the data
 data <- read.csv(here("data_tidy", "s1_data_cleaned.csv"))
@@ -79,65 +80,31 @@ trialdat$condition <- as.factor(trialdat$condition)
 
 trialdat$condition <-relevel(trialdat$condition, ref = "NonInfo")
 
-mod <- glmer(choice ~ condition+banditTrial + (1|PID),
+choice_mod_0 <- glmer(choice ~ (1|PID),
+                      data = trialdat,
+                      family = binomial(link = "logit"))
+choice_mod_1 <- glmer(choice ~ condition+banditTrial + (1|PID),
              data = trialdat,
              family = binomial(link = "logit"))
+choice_mod_2 <- glmer(choice ~ condition*banditTrial + (1|PID),
+                      data = trialdat,
+                      family = binomial(link = "logit"))
 
-summary(mod)
+lrtest(choice_mod_0, choice_mod_1, choice_mod_2)
 
-# Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
-# Family: binomial  ( logit )
-# Formula: choice ~ condition + banditTrial + (1 | PID)
-# Data: trialdat
+# Likelihood ratio test
 # 
-# AIC      BIC   logLik deviance df.resid 
-# 6878.7   6905.5  -3435.3   6870.7     5936 
-# 
-# Scaled residuals: 
-#   Min      1Q  Median      3Q     Max 
-# -5.7342 -0.7329 -0.3387  0.8687  3.3408 
-# 
-# Random effects:
-#   Groups Name        Variance Std.Dev.
-# PID    (Intercept) 1.689    1.3     
-# Number of obs: 5940, groups:  PID, 99
-# 
-# Fixed effects:
-#   Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)       0.488224   0.202840   2.407   0.0161 *  
-#   conditionNonInfo -0.562584   0.269865  -2.085   0.0371 *  
-#   banditTrial      -0.015523   0.001734  -8.950   <2e-16 ***
-#   ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-# 
-# Correlation of Fixed Effects:
-#   (Intr) cndtNI
-# condtnNnInf -0.702       
-# banditTrial -0.260  0.006
+# Model 1: choice ~ (1 | PID)
+# Model 2: choice ~ condition + banditTrial + (1 | PID)
+# Model 3: choice ~ condition * banditTrial + (1 | PID)
+# #Df  LogLik Df   Chisq Pr(>Chisq)    
+# 1   2 -3477.9                          
+# 2   4 -3435.3  2 85.1368     <2e-16 ***
+# 3   5 -3435.3  1  0.1971      0.657    
 
-confint(pairs(emmeans(mod, ~ condition,type="response")))
-
-# contrast              odds.ratio    SE  df asymp.LCL asymp.UCL
-# Informative / NonInfo       1.76 0.474 Inf      1.03      2.98
-# 
-# Confidence level used: 0.95
-# Intervals are back-transformed from the log odds ratio scale
-
-# is there an effect of an interaction?
-mod2 <- glmer(choice ~ condition*banditTrial + (1|PID),
-              data = trialdat,
-              family = binomial(link = "logit"))
-
-anova(mod,mod2,test="Chisq")
-
-# > anova(mod,mod2,test="Chisq")
-# Data: trialdat
-# Models:
-#   mod: choice ~ condition + banditTrial + (1 | PID)
-# mod2: choice ~ condition * banditTrial + (1 | PID)
-# npar    AIC    BIC  logLik deviance  Chisq Df Pr(>Chisq)
-# mod     4 6878.7 6905.5 -3435.3   6870.7                     
-# mod2    5 6880.5 6913.9 -3435.3   6870.5 0.1971  1      0.657
+summary(choice_mod_1)
+confint(pairs(emmeans(choice_mod_1, ~ condition,type="response"))) 
+# use 1/OR from the confint output to compute info/noninfo ratio, and 1/LCL and 1/UCL to compute CIs for that OR
 
 # Single value estimate at end of task ####
 
@@ -203,13 +170,13 @@ ggplot(estimates_summary,
 library(rstatix) # for anova
 
 ## check normality assumption
-qqPlot(estimates$responses) # qqPlot not looking too good... apply a log transform
+car::qqPlot(estimates$responses) # qqPlot not looking too good... apply a log transform
 
 est_transformed <- log(estimates$responses)
 #est_transformed <- log(estimates$responses + 0.000000000000000001) # uncomment this line & comment out previous line if running without exclusion criteria
 # this is because zeros are not excluded when no exclusion criteria are applied
 
-qqPlot(est_transformed) # looks better
+car::qqPlot(est_transformed) # looks better
 
 estimates$est_transformed <- est_transformed
 
@@ -247,3 +214,171 @@ estimates_raw_summary
 # 1      condition   1  41   2.111 1.54e-01       0.028000
 # 2           item   1  41 102.350 1.04e-12     * 0.523000
 # 3 condition:item   1  41   0.046 8.30e-01       0.000497
+
+
+######################################
+###### Win Stay, Lose Shift ##########
+######    R1 Suggestion     ##########
+######################################
+
+
+# use a mixed model to assess 
+
+trialdat_wsls <- trialdat %>%
+  mutate(switch = ifelse(banditTrial == 1, "NA",
+                         ifelse(choice == lag(choice), 0, 1))) %>%
+  mutate(prevFeedback = ifelse(banditTrial == 1, "NA", lag(feedback)))
+
+
+trialdat_wsls2 <- trialdat_wsls %>%
+  filter(switch != "NA")
+
+trialdat_wsls2$switch <- as.numeric(trialdat_wsls2$switch)
+trialdat_wsls2$prevFeedback <- as.numeric(trialdat_wsls2$prevFeedback)
+trialdat_wsls2$PID <- as.factor(trialdat_wsls2$PID)
+
+
+
+## baseline model
+
+wsls_baseline <- glmer(switch ~ 1 + (1|PID),
+                       family = binomial(link = "logit"),
+                       data = trialdat_wsls2,
+                       nAGQ = 0)
+
+## feedback model
+
+wsls_feedback <- glmer(switch ~ 1 + prevFeedback + (1|PID),
+                       family = binomial(link = "logit"),
+                       data = trialdat_wsls2,
+                       nAGQ = 0)
+
+
+## feedback + condition model
+
+wsls_feedback_cond <- glmer(switch ~ condition + prevFeedback + (1|PID),
+                            family = binomial(link = "logit"),
+                            data = trialdat_wsls2,
+                            nAGQ = 0)
+
+## interaction model
+
+wsls_interaction <- glmer(switch ~ condition*prevFeedback + (1|PID),
+                          family = binomial(link = "logit"),
+                          data = trialdat_wsls2,
+                          nAGQ = 0)
+
+summary(wsls_interaction)
+
+# Fixed effects:
+# Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                       -5.153e-01  1.517e-01  -3.398 0.000679 ***
+# conditionInformative              -7.368e-02  2.199e-01  -0.335 0.737624    
+# prevFeedback                      -4.189e-03  7.646e-04  -5.479 4.28e-08 ***
+# conditionInformative:prevFeedback -7.734e-05  1.140e-03  -0.068 0.945903    
+
+# > exp(-4.189e-03)
+# [1] 0.9958198
+
+anova(wsls_baseline, wsls_feedback, wsls_feedback_cond, wsls_interaction)
+
+# Models:
+# wsls_baseline: switch ~ 1 + (1 | PID)
+# wsls_feedback: switch ~ 1 + prevFeedback + (1 | PID)
+# wsls_feedback_cond: switch ~ condition + prevFeedback + (1 | PID)
+# wsls_interaction: switch ~ condition * prevFeedback + (1 | PID)
+# npar    AIC    BIC  logLik deviance   Chisq Df Pr(>Chisq)    
+# wsls_baseline         2 6911.0 6924.4 -3453.5   6907.0                          
+# wsls_feedback         3 6856.1 6876.1 -3425.0   6850.1 56.9665  1  4.433e-14 ***
+# wsls_feedback_cond    4 6857.9 6884.6 -3425.0   6849.9  0.1363  1     0.7120    
+# wsls_interaction      5 6859.9 6893.3 -3425.0   6849.9  0.0046  1     0.9462   
+
+###### (feedback is bimodally distributed in a weird way) ############
+
+# old school WSLS model #####
+
+##### finding out the parms and putting them in a dataframe for each individual
+
+## turning data into an array
+trialdat_wsls2$PID <- as.factor(trialdat_wsls2$PID)
+levels(trialdat_wsls2$PID) <- 1:length(unique(trialdat_wsls2$PID))
+trialdat_wsls2$PID <- as.numeric(trialdat_wsls2$PID)
+
+trialdat_wsls_array <- array(0, dim = c(59, ncol(trialdat_wsls2), length(unique(trialdat_wsls2$PID))))
+
+for(i in 1:length(unique(trialdat_wsls2$PID))){
+  for(j in 1:59){
+    for(k in 1:ncol(trialdat_wsls2)){
+      trialdat_wsls_array[j,k,i] <- trialdat_wsls2[trialdat_wsls2$PID == i & trialdat_wsls2$banditTrial == j +1, k]
+    }
+  }
+}
+
+trialdat_wsls_array[,,5]
+
+#######
+
+parmDeterminer <- data.frame(PID = 1:99,
+                             p_winstay = 0,
+                             p_loseshift = 0)
+
+
+## col 8 switch (where switch == 1)
+## col 9 is prevfeedback
+
+for(j in 1:99){
+  switchCount_lose <- 0
+  stayCount_win <- 0
+  loseTotalCounter <- 0
+  winTotalCounter <- 0
+  for(i in 1:59) {
+    if(trialdat_wsls_array[i, 9, j] == 0){
+      loseTotalCounter <- loseTotalCounter + 1
+      if(trialdat_wsls_array[i, 8, j] == 1) {
+        switchCount_lose <- switchCount_lose + 1
+      }
+    } else if(trialdat_wsls_array[i, 9, j] > 0) {
+      winTotalCounter <- winTotalCounter + 1
+      if(trialdat_wsls_array[i, 8, j] == 0) {
+        stayCount_win <- stayCount_win + 1
+      }
+    }
+  }
+  parmDeterminer[j,3] <-  switchCount_lose/loseTotalCounter
+  parmDeterminer[j,2] <-  stayCount_win/winTotalCounter
+}
+
+
+mean(parmDeterminer[,2])
+mean(parmDeterminer[,3])
+
+
+### tells which condition they were in
+PID_infoCond<- trialdat_wsls2 %>%
+  filter(banditTrial == 2 & condition == "Informative") %>%
+  select(PID) %>%
+  ungroup() %>% unlist() %>% unname()
+
+PID_nonInfoCond<- trialdat_wsls2 %>%
+  filter(banditTrial == 2 & condition == "NonInfo") %>%
+  select(PID) %>%
+  ungroup() %>% unlist() %>% unname()
+
+## adding a col to parmDeterminer
+
+parmDeterminer <- as.data.frame(parmDeterminer)
+
+parmDeterminer2 <- parmDeterminer %>%
+  mutate(condition = ifelse(PID %in% PID_infoCond, "Info", "NonInfo"))
+
+parmSummary <- parmDeterminer2 %>%
+  group_by(condition) %>%
+  summarise(mean_winstay = mean(p_winstay), sd_winstay = sd(p_winstay),
+            mean_loseshift = mean(p_loseshift), sd_loseshift = sd(p_loseshift))
+
+# > parmSummary
+# # A tibble: 2 × 5
+# condition mean_winstay sd_winstay mean_loseshift sd_loseshift
+# <chr>            <dbl>      <dbl>          <dbl>        <dbl>
+# 1 Info             0.697      0.226          0.381        0.203
+# 2 NonInfo          0.677      0.210          0.395        0.221
